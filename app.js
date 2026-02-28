@@ -6,6 +6,38 @@
   const CGI_BIN = '__CGI_BIN__';
 
   // ========================================
+  // GITHUB CONFIG (for manual workflow trigger)
+  // Repo owner/name are auto-detected from GitHub Pages URL,
+  // or can be set manually below.
+  // ========================================
+  const GITHUB_CONFIG = {
+    // Will be auto-detected if hosted on github.io
+    owner: '',
+    repo: '',
+    // Personal Access Token — set via ?token=xxx URL parameter
+    token: '',
+    workflow: 'update-market-data.yml'
+  };
+
+  // Try to auto-detect from hostname (username.github.io/repo)
+  (function detectGitHub() {
+    const host = location.hostname;
+    if (host.endsWith('.github.io')) {
+      GITHUB_CONFIG.owner = host.replace('.github.io', '');
+      const pathParts = location.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0) GITHUB_CONFIG.repo = pathParts[0];
+    }
+    // Check URL params for token
+    const params = new URLSearchParams(location.search);
+    const t = params.get('token');
+    // Token persisted via URL param only — no storage APIs needed
+    if (t) {
+      GITHUB_CONFIG.token = t;
+      // Keep token in URL so it persists on page reload
+    }
+  })();
+
+  // ========================================
   // DATA CONFIGURATION
   // ========================================
 
@@ -28,6 +60,8 @@
         { name: 'Total Intl Stock', symbol: 'VXUS' },
         { name: 'Total US Stock', symbol: 'VTI' },
         { name: 'Emerging Markets', symbol: 'EEM' },
+        { name: 'Asia Stock', symbol: 'EEMA' },
+        { name: 'China', symbol: 'MCHI' },
       ]
     },
     indices: {
@@ -272,27 +306,22 @@
   }
 
   // ========================================
-  // BREADTH
+  // BREADTH (from breadth.json — S&P 500)
   // ========================================
 
-  function computeBreadth() {
-    const syms = SECTIONS.sectors.items.map(i => i.symbol);
-    let adv = 0, dec = 0, total = 0, pos = [], neg = [], count = 0;
-    syms.forEach(s => {
-      const d = dataStore[s]; if (!d) return;
-      count++; total += d.pctChange;
-      if (d.pctChange > 0) { adv++; pos.push(d.pctChange); }
-      else if (d.pctChange < 0) { dec++; neg.push(Math.abs(d.pctChange)); }
-    });
-    if (count === 0) return null;
-    const advPct = (adv / count) * 100, declPct = (dec / count) * 100;
-    const avgP = pos.length ? pos.reduce((a, b) => a + b, 0) / pos.length : 0;
-    const avgN = neg.length ? neg.reduce((a, b) => a + b, 0) / neg.length : 0.001;
-    let label, cls;
-    if (advPct > 60) { label = 'STRONG BREADTH'; cls = 'strong'; }
-    else if (advPct < 40) { label = 'WEAK BREADTH'; cls = 'weak'; }
-    else { label = 'NEUTRAL'; cls = 'neutral'; }
-    return { advPct, declPct, stick: total, strin: avgP / avgN, label, labelClass: cls };
+  let breadthData = null;
+
+  async function loadBreadthData() {
+    try {
+      const res = await fetch('./breadth.json');
+      if (!res.ok) throw new Error('No breadth data');
+      breadthData = await res.json();
+      renderBreadth();
+      return true;
+    } catch (e) {
+      console.warn('No S&P 500 breadth data available:', e.message);
+      return false;
+    }
   }
 
   // ========================================
@@ -436,39 +465,78 @@
     tbody.innerHTML = items.map(item => row(item, dataStore[item.symbol])).join('');
   }
 
+  function breadthBarColor(pct) {
+    if (pct >= 70) return 'var(--color-green)';
+    if (pct >= 50) return 'var(--color-blue)';
+    if (pct >= 30) return 'var(--color-yellow)';
+    return 'var(--color-red)';
+  }
+
+  function breadthValColor(pct) {
+    if (pct == null) return 'var(--color-text-muted)';
+    if (pct >= 70) return 'var(--color-green)';
+    if (pct >= 50) return 'var(--color-blue)';
+    if (pct >= 30) return 'var(--color-yellow)';
+    return 'var(--color-red)';
+  }
+
   function renderBreadth() {
-    const b = computeBreadth();
     const el = document.getElementById('breadth-content');
     if (!el) return;
-    if (!b) { el.innerHTML = '<div class="breadth-metric"><div class="breadth-metric-label">Loading...</div><div class="breadth-metric-value">--</div></div>'; return; }
+    const b = breadthData;
+    if (!b) {
+      el.innerHTML = '<div class="breadth-metric"><div class="breadth-metric-label">Loading S&P 500 breadth...</div><div class="breadth-metric-value">--</div></div>';
+      return;
+    }
+
+    const advPct = b.adv_pct;
+    const decPct = b.dec_pct;
+    const a20 = b.above_20d_pct;
+    const a50 = b.above_50d_pct;
+    const label = b.label;
+    const labelClass = b.label_class;
+
+    // Format update time
+    let timeStr = '';
+    if (b.updated) {
+      const d = new Date(b.updated);
+      const mo = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      const hh = String(d.getHours()).padStart(2,'0');
+      const mm = String(d.getMinutes()).padStart(2,'0');
+      timeStr = `${mo}/${dd} ${hh}:${mm}`;
+    }
+
     el.innerHTML = `
       <div class="breadth-metric">
-        <div class="breadth-metric-label">Advancers</div>
-        <div class="breadth-metric-value" style="color:var(--color-green)">${fmt(b.advPct,0)}%</div>
-        <div class="breadth-bar-container"><div class="breadth-bar" style="width:${b.advPct}%;background:var(--color-green)"></div></div>
+        <div class="breadth-metric-label">S&P 500 Advancers</div>
+        <div class="breadth-metric-value" style="color:var(--color-green)">${fmt(advPct,1)}%</div>
+        <div class="breadth-bar-container"><div class="breadth-bar" style="width:${advPct}%;background:var(--color-green)"></div></div>
       </div>
       <div class="breadth-metric">
-        <div class="breadth-metric-label">Decliners</div>
-        <div class="breadth-metric-value" style="color:var(--color-red)">${fmt(b.declPct,0)}%</div>
-        <div class="breadth-bar-container"><div class="breadth-bar" style="width:${b.declPct}%;background:var(--color-red)"></div></div>
+        <div class="breadth-metric-label">S&P 500 Decliners</div>
+        <div class="breadth-metric-value" style="color:var(--color-red)">${fmt(decPct,1)}%</div>
+        <div class="breadth-bar-container"><div class="breadth-bar" style="width:${decPct}%;background:var(--color-red)"></div></div>
       </div>
       <div class="breadth-metric">
-        <div class="breadth-metric-label">STICK</div>
-        <div class="breadth-metric-value" style="color:${b.stick>=0?'var(--color-green)':'var(--color-red)'}">${fmtSigned(b.stick)}</div>
+        <div class="breadth-metric-label">&gt; 20D MA</div>
+        <div class="breadth-metric-value" style="color:${breadthValColor(a20)}">${a20 != null ? fmt(a20,1) + '%' : '--'}</div>
+        <div class="breadth-bar-container"><div class="breadth-bar" style="width:${a20 || 0}%;background:${breadthBarColor(a20 || 0)}"></div></div>
       </div>
       <div class="breadth-metric">
-        <div class="breadth-metric-label">STRIN</div>
-        <div class="breadth-metric-value">${fmt(b.strin,2)}</div>
+        <div class="breadth-metric-label">&gt; 50D MA</div>
+        <div class="breadth-metric-value" style="color:${breadthValColor(a50)}">${a50 != null ? fmt(a50,1) + '%' : '--'}</div>
+        <div class="breadth-bar-container"><div class="breadth-bar" style="width:${a50 || 0}%;background:${breadthBarColor(a50 || 0)}"></div></div>
       </div>
-      <div class="breadth-label ${b.labelClass}">
-        <span class="status-dot ${b.labelClass==='strong'?'live':b.labelClass==='weak'?'error':'stale'}"></span>
-        ${b.label}
-      </div>`;
+      <div class="breadth-label ${labelClass}">
+        <span class="status-dot ${labelClass==='strong'?'live':labelClass==='weak'?'error':'stale'}"></span>
+        ${label}
+      </div>
+      ${timeStr ? '<div class="breadth-updated">' + timeStr + '</div>' : ''}`;
   }
 
   function renderAll() {
     ['alternatives', 'global', 'indices', 'sectors'].forEach(renderSection);
-    renderBreadth();
   }
 
   function showSkeletons() {
@@ -554,56 +622,63 @@
     }
   }
 
-  async function fetchBatch(symbols) {
-    try {
-      const res = await fetch(`${CGI_BIN}/yahoo.py/batch`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbols, range: '1y', interval: '1d' })
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    } catch (e) {
-      console.error('Batch fetch error:', e);
-      return {};
-    }
-  }
-
-  async function fetchLiveData() {
+  async function refreshData() {
     if (isLoading) return;
     isLoading = true;
     const btn = document.getElementById('btn-refresh');
     if (btn) btn.classList.add('loading');
     const statusEl = document.getElementById('last-updated');
 
-    const batchSize = 4;
-    let fetched = 0;
-
-    for (let i = 0; i < ALL_SYMBOLS.length; i += batchSize) {
-      const batch = ALL_SYMBOLS.slice(i, i + batchSize);
-      if (statusEl) statusEl.textContent = `Refreshing ${Math.min(fetched + batchSize, ALL_SYMBOLS.length)}/${ALL_SYMBOLS.length}...`;
+    // Step 1: Trigger GitHub Actions workflow (if token is set)
+    if (GITHUB_CONFIG.token && GITHUB_CONFIG.owner && GITHUB_CONFIG.repo) {
+      if (statusEl) statusEl.textContent = 'Triggering data update...';
       try {
-        const results = await fetchBatch(batch);
-        batch.forEach(s => {
-          if (results[s] && !results[s].error) {
-            const candles = parseChartData(results[s]);
-            if (candles) {
-              candleStore[s] = candles;
-              const ind = computeIndicators(candles);
-              if (ind) dataStore[s] = ind;
-            }
-          }
+        const dispatchUrl = `https://api.github.com/repos/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/actions/workflows/${GITHUB_CONFIG.workflow}/dispatches`;
+        const resp = await fetch(dispatchUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${GITHUB_CONFIG.token}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ref: 'main' })
         });
-        fetched += batch.length;
-        renderAll();
+        if (resp.status === 204) {
+          if (statusEl) statusEl.textContent = 'Update triggered, refreshing in 90s...';
+          // Wait for GitHub Actions to complete (~60-90s)
+          await new Promise(r => setTimeout(r, 90000));
+        } else {
+          console.warn('Dispatch failed:', resp.status);
+          if (statusEl) statusEl.textContent = 'Reloading cached data...';
+        }
       } catch (e) {
-        fetched += batch.length;
+        console.warn('Could not trigger workflow:', e);
       }
-      if (i + batchSize < ALL_SYMBOLS.length) await new Promise(r => setTimeout(r, 150));
+    } else {
+      if (statusEl) statusEl.textContent = 'Reloading data...';
     }
 
+    // Step 2: Re-fetch data.json and breadth.json with cache-bust
+    const bust = '?t=' + Date.now();
+    try {
+      const res = await fetch('./data.json' + bust);
+      if (res.ok) {
+        const raw = await res.json();
+        processRawData(raw);
+      }
+    } catch (e) { console.warn('data.json reload failed:', e); }
+
+    try {
+      const res = await fetch('./breadth.json' + bust);
+      if (res.ok) {
+        breadthData = await res.json();
+      }
+    } catch (e) { console.warn('breadth.json reload failed:', e); }
+
     lastUpdated = new Date();
-    updateTimestamp('live');
+    renderAll();
+    renderBreadth();
+    updateTimestamp(GITHUB_CONFIG.token ? 'live' : 'cached');
     isLoading = false;
     if (btn) btn.classList.remove('loading');
   }
@@ -675,16 +750,16 @@
     bindSortListeners();
     showSkeletons();
 
-    document.getElementById('btn-refresh').addEventListener('click', () => fetchLiveData());
+    document.getElementById('btn-refresh').addEventListener('click', () => refreshData());
 
     // 1) Load cached data instantly
     const hasCached = await loadCachedData();
 
-    // 2) Auto-refresh via CGI every 5 minutes
-    setInterval(() => fetchLiveData(), 5 * 60 * 1000);
+    // 2) Load S&P 500 breadth data
+    await loadBreadthData();
 
-    // 3) If no cached data, fetch live immediately
-    if (!hasCached) fetchLiveData();
+    // 3) Auto-reload data every 2 hours
+    setInterval(() => refreshData(), 2 * 60 * 60 * 1000);
   }
 
   if (document.readyState === 'loading') {

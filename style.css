@@ -258,6 +258,13 @@ html, body {
   color: var(--color-yellow);
 }
 
+.breadth-updated {
+  font-family: var(--font-mono);
+  font-size: calc(var(--text-xs) - 1px);
+  color: var(--color-text-faint);
+  align-self: center;
+}
+
 .breadth-bar-container {
   width: 120px;
   height: 6px;

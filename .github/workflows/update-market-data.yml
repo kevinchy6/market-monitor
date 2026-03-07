@@ -23,6 +23,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install dependencies
+        run: pip install yfinance
+
       - name: Update dashboard data (data.json)
         run: |
           cd scripts

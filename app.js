@@ -313,7 +313,7 @@
 
   async function loadBreadthData() {
     try {
-      const res = await fetch('./breadth.json');
+      const res = await fetch('./breadth.json?t=' + Date.now());
       if (!res.ok) throw new Error('No breadth data');
       breadthData = await res.json();
       renderBreadth();
@@ -608,7 +608,7 @@
     const statusEl = document.getElementById('last-updated');
     if (statusEl) statusEl.textContent = 'Loading cached data...';
     try {
-      const res = await fetch('./data.json');
+      const res = await fetch('./data.json?t=' + Date.now());
       if (!res.ok) throw new Error('No cache');
       const raw = await res.json();
       processRawData(raw);

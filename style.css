@@ -653,7 +653,7 @@ html, body {
 
 @media (max-width: 768px) {
   .main-content {
-    padding: var(--space-2);
+    padding: var(--space-1);
     gap: var(--space-2);
   }
   .topbar {
@@ -666,9 +666,30 @@ html, body {
     gap: var(--space-3);
     padding: var(--space-3);
   }
+  .data-table {
+    font-size: 10px;
+  }
   .data-table td,
   .data-table th {
-    padding: var(--space-1);
+    padding: 3px 3px;
+  }
+  .data-table td:first-child {
+    max-width: 72px;
+    font-size: 10px;
+  }
+  .data-table td:nth-child(2) {
+    font-size: 9px;
+  }
+  .data-table th {
+    font-size: 9px;
+  }
+  .data-table th.col-market,
+  .data-table th[data-sort-key="name"] {
+    min-width: auto;
+  }
+  .data-table th.col-symbol,
+  .data-table th[data-sort-key="symbol"] {
+    min-width: auto;
   }
 }
 

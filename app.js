@@ -381,12 +381,13 @@
 
   // Column definitions for sorting
   const COLUMNS = [
-    { key: 'name',   label: 'Market', sortable: true,  type: 'string' },
-    { key: 'symbol', label: 'Symbol', sortable: true,  type: 'string' },
-    { key: 'price',  label: 'Price',  sortable: true,  type: 'num' },
-    { key: 'wtd',    label: 'WTD',    sortable: true,  type: 'num' },
-    { key: 'mtd',    label: 'MTD',    sortable: true,  type: 'num' },
-    { key: 'ytd',    label: 'YTD',    sortable: true,  type: 'num' },
+    { key: 'name',      label: 'Market', sortable: true,  type: 'string' },
+    { key: 'symbol',    label: 'Symbol', sortable: true,  type: 'string' },
+    { key: 'price',     label: 'Price',  sortable: true,  type: 'num' },
+    { key: 'pctChange', label: '%Δ',     sortable: true,  type: 'num' },
+    { key: 'wtd',       label: 'WTD',    sortable: true,  type: 'num' },
+    { key: 'mtd',       label: 'MTD',    sortable: true,  type: 'num' },
+    { key: 'ytd',       label: 'YTD',    sortable: true,  type: 'num' },
   ];
 
   function getSortValue(item, colKey) {
@@ -430,13 +431,14 @@
   }
 
   function row(item, ind) {
-    const emptyCells = '<td class="cell-error">--</td>'.repeat(4);
+    const emptyCells = '<td class="cell-error">--</td>'.repeat(5);
     if (!ind) return `<tr><td title="${item.name}">${item.name}</td><td>${item.symbol}</td>${emptyCells}</tr>`;
-    const { price, wtd, mtd, ytd } = ind;
+    const { price, pctChange, wtd, mtd, ytd } = ind;
     return `<tr>
       <td title="${item.name}">${item.name}</td>
       <td>${item.symbol}</td>
       <td>${fmtPrice(price)}</td>
+      <td class="${hmClass(pctChange, 'period')}">${fmtPct(pctChange)}</td>
       <td class="${hmClass(wtd, 'period')}">${fmtPct(wtd)}</td>
       <td class="${hmClass(mtd, 'period')}">${fmtPct(mtd)}</td>
       <td class="${hmClass(ytd, 'period')}">${fmtPct(ytd)}</td>
@@ -449,6 +451,7 @@
       h += `<tr class="skeleton-row">
         <td><span class="skeleton-cell wide"></span></td>
         <td><span class="skeleton-cell narrow"></span></td>
+        <td><span class="skeleton-cell"></span></td>
         <td><span class="skeleton-cell"></span></td>
         <td><span class="skeleton-cell"></span></td>
         <td><span class="skeleton-cell"></span></td>

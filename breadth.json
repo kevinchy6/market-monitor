@@ -1,13 +1,13 @@
 {
-  "updated": "2026-04-08T22:50:49Z",
+  "updated": "2026-04-09T13:58:50Z",
   "stocks_counted": 503,
-  "advancers": 421,
-  "decliners": 81,
+  "advancers": 246,
+  "decliners": 256,
   "unchanged": 1,
-  "adv_pct": 83.7,
-  "dec_pct": 16.1,
-  "above_20d_pct": 75.5,
-  "above_50d_pct": 49.3,
-  "label": "STRONG BREADTH",
-  "label_class": "strong"
+  "adv_pct": 48.9,
+  "dec_pct": 50.9,
+  "above_20d_pct": 74.4,
+  "above_50d_pct": 48.7,
+  "label": "NEUTRAL",
+  "label_class": "neutral"
 }

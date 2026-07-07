@@ -1,12 +1,12 @@
 {
-  "updated": "2026-07-07T18:05:32Z",
+  "updated": "2026-07-07T21:35:53Z",
   "stocks_counted": 503,
-  "advancers": 289,
-  "decliners": 213,
+  "advancers": 284,
+  "decliners": 218,
   "unchanged": 1,
-  "adv_pct": 57.5,
-  "dec_pct": 42.3,
-  "above_20d_pct": 66.1,
+  "adv_pct": 56.5,
+  "dec_pct": 43.3,
+  "above_20d_pct": 66.9,
   "above_50d_pct": 67.9,
   "label": "NEUTRAL",
   "label_class": "neutral"

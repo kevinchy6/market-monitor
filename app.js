@@ -97,7 +97,7 @@
         { name: 'Blockchain', symbol: 'BLOK' },
         { name: 'Utilities', symbol: 'XLU' },
         { name: 'Biotech', symbol: 'XBI' },
-        { name: 'US Cannabis', symbol: 'MSOS' },
+        { name: 'Memory (DRAM)', symbol: 'DRAM' },
         { name: 'Technology', symbol: 'XLK' },
         { name: 'Chinese Tech', symbol: 'KWEB' },
         { name: 'Solar Energy', symbol: 'TAN' },

@@ -28,7 +28,7 @@ SYMBOLS = [
     # Sectors
     "GDX", "IYT", "IGV", "XLF", "XRT", "XHB", "KRE", "IYR",
     "ITA", "XLI", "XLE", "XLY", "XLB", "XLP", "XLV", "BLOK",
-    "XLU", "XBI", "MSOS", "XLK", "KWEB", "TAN", "SOXX",
+    "XLU", "XBI", "DRAM", "XLK", "KWEB", "TAN", "SOXX",
 ]
 
 

@@ -67,6 +67,7 @@
     indices: {
       title: 'US Equity Indices',
       items: [
+        { name: 'Magnificent 7', symbol: 'MAGS' },
         { name: 'Innovation', symbol: 'ARKK' },
         { name: 'S&P 500 Equal Wt', symbol: 'RSP' },
         { name: 'Russell 2000', symbol: 'IWM' },

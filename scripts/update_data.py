@@ -24,7 +24,7 @@ SYMBOLS = [
     # Global Equities
     "IEV", "VXUS", "VTI", "EEM", "EEMA", "MCHI",
     # US Equity Indices
-    "ARKK", "RSP", "IWM", "TLT", "DIA", "SPY", "QQQ",
+    "MAGS", "ARKK", "RSP", "IWM", "TLT", "DIA", "SPY", "QQQ",
     # Sectors
     "GDX", "IYT", "IGV", "XLF", "XRT", "XHB", "KRE", "IYR",
     "ITA", "XLI", "XLE", "XLY", "XLB", "XLP", "XLV", "BLOK",

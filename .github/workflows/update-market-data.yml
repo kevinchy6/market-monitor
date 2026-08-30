@@ -6,6 +6,7 @@ on:
     # 12:00, 14:00, 16:00, 18:00, 20:00, 22:00 UTC
     # = 08:00-18:00 HKT (covers US pre-market to after-hours)
     - cron: '0 12,14,16,18,20,22 * * 1-5'
+    - cron: '0 2 * * 6'   # Sat safety net
   workflow_dispatch:  # Manual trigger via Refresh button
 
 permissions:

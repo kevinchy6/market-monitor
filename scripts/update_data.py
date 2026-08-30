@@ -8,7 +8,7 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 try:
@@ -32,12 +32,41 @@ SYMBOLS = [
 ]
 
 
+
+def expected_last_trading_date():
+    """Most recent US weekday whose daily candle should exist by now (UTC).
+    Holidays may cause a false 'stale' flag — retries then accept, harmless."""
+    now = datetime.now(timezone.utc)
+    d = now.date()
+    # before ~14:00 UTC the current day's candle may not exist yet
+    if now.hour < 14:
+        d -= timedelta(days=1)
+    while d.weekday() >= 5:  # Sat/Sun
+        d -= timedelta(days=1)
+    return d
+
+
 def fetch_one(symbol):
     """Fetch 1-year daily chart data for one symbol using yfinance."""
     try:
         ticker = yf.Ticker(symbol)
-        hist = ticker.history(period="1y", interval="1d")
-        if hist.empty:
+        # Cache-busting: explicit start/end timestamps make the request URL unique
+        # per run, so Yahoo's CDN can't serve a stale cached "range=1y" response.
+        now = datetime.now(timezone.utc)
+        hist = None
+        for attempt in range(3):
+            h = ticker.history(start=now - timedelta(days=370), end=now + timedelta(days=1),
+                               interval="1d")
+            if h.empty:
+                time.sleep(5)
+                continue
+            hist = h
+            last_date = h.index[-1].date()
+            if last_date >= expected_last_trading_date():
+                break  # fresh
+            print(f"[stale: last={last_date}, retry {attempt+1}]", end=" ", flush=True)
+            time.sleep(10)
+        if hist is None or hist.empty:
             return None
 
         # Convert to same JSON structure the frontend expects
@@ -87,6 +116,14 @@ def main():
     print(f"yfinance version: {yf.__version__}")
     print("=" * 60)
 
+    existing = {}
+    if os.path.exists(output_path):
+        try:
+            with open(output_path) as f:
+                existing = json.load(f)
+        except Exception:
+            pass
+
     results = {}
     for i, sym in enumerate(SYMBOLS):
         print(f"  [{i+1}/{len(SYMBOLS)}] {sym}...", end=" ", flush=True)
@@ -94,6 +131,9 @@ def main():
         if data:
             results[sym] = data
             print("OK")
+        elif sym in existing:
+            results[sym] = existing[sym]
+            print("KEPT-OLD")
         else:
             print("SKIP")
         # Small delay to avoid rate limits

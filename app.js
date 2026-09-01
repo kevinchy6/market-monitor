@@ -188,23 +188,29 @@
    * Find the close price on or just before a given date.
    * Returns null if no candle found.
    */
-  function findCloseOnOrBefore(candles, targetDate) {
-    // targetDate is a Date object — we compare by date string YYYY-MM-DD
-    const targetStr = dateStr(targetDate);
+  // ── Trading dates anchored to US Eastern, independent of viewer timezone ──
+  const ET_DATE = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' });
+  const ET_DOW = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short' });
+  const DOW_MAP = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+  function dateStr(d) {
+    return ET_DATE.format(d);  // YYYY-MM-DD in ET (trading date)
+  }
+
+  // Calendar arithmetic on a YYYY-MM-DD string (timezone-free)
+  function shiftDateStr(y, m, d, days) {
+    return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+  }
+
+  function findCloseOnOrBefore(candles, targetStr) {
     for (let i = candles.length - 1; i >= 0; i--) {
       if (dateStr(candles[i].date) <= targetStr) return candles[i].close;
     }
     return null;
   }
 
-  function dateStr(d) {
-    return d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
-  }
-
   /**
-   * Compute WTD, MTD, YTD returns from candle data.
+   * Compute WTD, MTD, YTD returns from candle data (ET trading calendar).
    */
   function computePeriodReturns(candles) {
     if (!candles || candles.length < 5) return { wtd: null, mtd: null, ytd: null };
@@ -213,30 +219,20 @@
     const currentClose = lastCandle.close;
     const lastDate = lastCandle.date;
 
-    // --- WTD: from last Friday's close (or most recent trading day before this week) ---
-    // Get the Monday of the current week
-    const dayOfWeek = lastDate.getDay(); // 0=Sun, 1=Mon, ...
+    const [y, m, d] = dateStr(lastDate).split('-').map(Number);
+    const dayOfWeek = DOW_MAP[ET_DOW.format(lastDate)];
+
+    // --- WTD: from the last trading day before this week's Monday ---
     const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const monday = new Date(lastDate);
-    monday.setDate(monday.getDate() - mondayOffset);
-    // We want the close of the last trading day BEFORE Monday = last Friday (or before)
-    const dayBeforeMonday = new Date(monday);
-    dayBeforeMonday.setDate(dayBeforeMonday.getDate() - 1);
-    const wtdBase = findCloseOnOrBefore(candles, dayBeforeMonday);
+    const wtdBase = findCloseOnOrBefore(candles, shiftDateStr(y, m, d, -(mondayOffset + 1)));
     const wtd = wtdBase ? ((currentClose - wtdBase) / wtdBase) * 100 : null;
 
-    // --- MTD: from last day of prior month ---
-    const firstOfMonth = new Date(lastDate.getFullYear(), lastDate.getMonth(), 1);
-    const lastDayPrevMonth = new Date(firstOfMonth);
-    lastDayPrevMonth.setDate(lastDayPrevMonth.getDate() - 1);
-    const mtdBase = findCloseOnOrBefore(candles, lastDayPrevMonth);
+    // --- MTD: from the last day of the prior month ---
+    const mtdBase = findCloseOnOrBefore(candles, shiftDateStr(y, m, 1, -1));
     const mtd = mtdBase ? ((currentClose - mtdBase) / mtdBase) * 100 : null;
 
-    // --- YTD: from last trading day of prior year ---
-    const firstOfYear = new Date(lastDate.getFullYear(), 0, 1);
-    const lastDayPrevYear = new Date(firstOfYear);
-    lastDayPrevYear.setDate(lastDayPrevYear.getDate() - 1);
-    const ytdBase = findCloseOnOrBefore(candles, lastDayPrevYear);
+    // --- YTD: from the last trading day of the prior year ---
+    const ytdBase = findCloseOnOrBefore(candles, shiftDateStr(y, 1, 1, -1));
     const ytd = ytdBase ? ((currentClose - ytdBase) / ytdBase) * 100 : null;
 
     return { wtd, mtd, ytd };

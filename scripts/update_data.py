@@ -146,6 +146,8 @@ def main():
         print("[ERROR] No data fetched at all — aborting")
         sys.exit(1)
 
+    results["_meta"] = {"updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+
     with open(output_path, "w") as f:
         json.dump(results, f)
 

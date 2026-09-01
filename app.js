@@ -115,6 +115,19 @@
   const dataStore = {};       // symbol -> indicators
   const candleStore = {};     // symbol -> raw candles (needed for period returns)
   let lastUpdated = null;
+  let dataUpdatedAt = null;  // when data.json was generated (from _meta)
+
+  // Format a Date in Hong Kong time: "MM/DD HH:mm"
+  function fmtHKT(d) {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Hong_Kong',
+      month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).formatToParts(d);
+    const g = {};
+    parts.forEach(p => g[p.type] = p.value);
+    return `${g.month}/${g.day} ${g.hour}:${g.minute}`;
+  }
   let isLoading = false;
 
   // Sort state per section: { key: colIndex, dir: 'asc' | 'desc' }
@@ -503,12 +516,7 @@
     // Format update time
     let timeStr = '';
     if (b.updated) {
-      const d = new Date(b.updated);
-      const mo = String(d.getMonth()+1).padStart(2,'0');
-      const dd = String(d.getDate()).padStart(2,'0');
-      const hh = String(d.getHours()).padStart(2,'0');
-      const mm = String(d.getMinutes()).padStart(2,'0');
-      timeStr = `${mo}/${dd} ${hh}:${mm}`;
+      timeStr = fmtHKT(new Date(b.updated)) + ' HKT';
     }
 
     el.innerHTML = `
@@ -598,7 +606,11 @@
   // ========================================
 
   function processRawData(rawData) {
+    if (rawData._meta && rawData._meta.updated) {
+      dataUpdatedAt = new Date(rawData._meta.updated);
+    }
     Object.keys(rawData).forEach(symbol => {
+      if (symbol.startsWith('_')) return;
       const candles = parseChartData(rawData[symbol]);
       if (candles) {
         candleStore[symbol] = candles;
@@ -689,12 +701,10 @@
 
   function updateTimestamp(mode) {
     const el = document.getElementById('last-updated');
-    if (!el || !lastUpdated) return;
-    const hh = String(lastUpdated.getHours()).padStart(2, '0');
-    const mm = String(lastUpdated.getMinutes()).padStart(2, '0');
-    const ss = String(lastUpdated.getSeconds()).padStart(2, '0');
-    const modeLabel = mode === 'cached' ? ' (cached)' : '';
-    el.innerHTML = `<span class="status-dot ${mode === 'live' ? 'live' : 'stale'}"></span>Updated ${hh}:${mm}:${ss}${modeLabel}`;
+    if (!el) return;
+    const t = dataUpdatedAt || lastUpdated;
+    if (!t) return;
+    el.innerHTML = `<span class="status-dot ${mode === 'live' ? 'live' : 'stale'}"></span>Data updated ${fmtHKT(t)} HKT`;
   }
 
   // ========================================

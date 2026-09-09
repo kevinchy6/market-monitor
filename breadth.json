@@ -1,13 +1,13 @@
 {
-  "updated": "2026-09-09T16:19:52Z",
+  "updated": "2026-09-09T17:18:07Z",
   "stocks_counted": 503,
-  "advancers": 101,
-  "decliners": 400,
-  "unchanged": 2,
-  "adv_pct": 20.1,
-  "dec_pct": 79.5,
-  "above_20d_pct": 20.9,
-  "above_50d_pct": 38.2,
+  "advancers": 123,
+  "decliners": 380,
+  "unchanged": 0,
+  "adv_pct": 24.5,
+  "dec_pct": 75.5,
+  "above_20d_pct": 22.3,
+  "above_50d_pct": 38.8,
   "label": "WEAK BREADTH",
   "label_class": "weak"
 }

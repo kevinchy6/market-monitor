@@ -60,6 +60,14 @@ def fetch_one(symbol):
             if h.empty:
                 time.sleep(5)
                 continue
+            # Drop trailing rows where Close is NaN. Yahoo often returns today's
+            # row for equities/ETFs with every field NaN when the intraday feed
+            # is lagging or blocked; keeping that row means regularMarketPrice
+            # ends up None and the front-end shows a blank/zero change.
+            h = h.dropna(subset=["Close"], how="any")
+            if h.empty:
+                time.sleep(5)
+                continue
             hist = h
             last_date = h.index[-1].date()
             if last_date >= expected_last_trading_date():
@@ -124,14 +132,28 @@ def main():
         except Exception:
             pass
 
+    def old_is_usable(sym):
+        """An existing entry is only worth keeping if its regularMarketPrice is
+        a real number. Otherwise the frontend renders blanks/zeros."""
+        try:
+            price = existing[sym]["chart"]["result"][0]["meta"]["regularMarketPrice"]
+            return isinstance(price, (int, float)) and price == price   # not NaN
+        except Exception:
+            return False
+
     results = {}
     for i, sym in enumerate(SYMBOLS):
         print(f"  [{i+1}/{len(SYMBOLS)}] {sym}...", end=" ", flush=True)
         data = fetch_one(sym)
+        if not data:
+            # One more attempt with a longer pause -- often clears a transient
+            # Yahoo rate-limit that gave us NaN closes on the first try.
+            time.sleep(3)
+            data = fetch_one(sym)
         if data:
             results[sym] = data
             print("OK")
-        elif sym in existing:
+        elif sym in existing and old_is_usable(sym):
             results[sym] = existing[sym]
             print("KEPT-OLD")
         else:

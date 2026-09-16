@@ -46,6 +46,29 @@ def expected_last_trading_date():
     return d
 
 
+def _fetch_latest_close(symbol):
+    """Ask Yahoo's v8 chart endpoint for `meta.regularMarketPrice` -- the most
+    recent print, populated even when the daily bar hasn't aggregated yet.
+    Returns (price, session_date) or None."""
+    try:
+        import requests
+        from datetime import datetime as _dt, timezone as _tz
+        r = requests.get(
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}",
+            params={"range": "5d", "interval": "1d"},
+            headers={"User-Agent": "Mozilla/5.0"}, timeout=15)
+        j = r.json()
+        res = j["chart"]["result"][0]
+        px = res["meta"].get("regularMarketPrice")
+        if not isinstance(px, (int, float)) or px != px:
+            return None
+        session_ts = res["meta"].get("regularMarketTime") or res["timestamp"][-1]
+        session_date = _dt.fromtimestamp(int(session_ts), _tz.utc).date()
+        return (float(px), session_date)
+    except Exception:
+        return None
+
+
 def fetch_one(symbol):
     """Fetch 1-year daily chart data for one symbol using yfinance."""
     try:
@@ -54,16 +77,29 @@ def fetch_one(symbol):
         # per run, so Yahoo's CDN can't serve a stale cached "range=1y" response.
         now = datetime.now(timezone.utc)
         hist = None
+        latest_price_meta = None   # from ticker.fast_info / v8 chart, only used
+                                   # to fill a trailing NaN close (Yahoo lag).
         for attempt in range(3):
             h = ticker.history(start=now - timedelta(days=370), end=now + timedelta(days=1),
                                interval="1d")
             if h.empty:
                 time.sleep(5)
                 continue
-            # Drop trailing rows where Close is NaN. Yahoo often returns today's
-            # row for equities/ETFs with every field NaN when the intraday feed
-            # is lagging or blocked; keeping that row means regularMarketPrice
-            # ends up None and the front-end shows a blank/zero change.
+            # If the LAST row has NaN Close, Yahoo's daily aggregator is lagging
+            # today's close. `meta.regularMarketPrice` from the v8 chart endpoint
+            # usually already has it -- pull that and stitch it into the frame
+            # before we drop the NaN row.
+            if len(h) and h["Close"].iloc[-1] != h["Close"].iloc[-1]:
+                latest_price_meta = _fetch_latest_close(symbol)
+                if latest_price_meta:
+                    px, ts = latest_price_meta
+                    # Only stitch if the meta timestamp matches (or is later than)
+                    # that NaN row -- guards against filling a random stale price.
+                    last_ts = h.index[-1]
+                    if ts >= last_ts.date():
+                        h.loc[h.index[-1], ["Open", "High", "Low", "Close"]] = px
+                        if h["Volume"].iloc[-1] != h["Volume"].iloc[-1]:
+                            h.loc[h.index[-1], "Volume"] = 0
             h = h.dropna(subset=["Close"], how="any")
             if h.empty:
                 time.sleep(5)

@@ -71,8 +71,21 @@ def get_sp500_symbols():
 
 # ─── STEP 2: Fetch data in batches using yfinance ────────────────────
 def fetch_all_data(symbols):
-    """Fetch 3-month daily data for all symbols using yfinance batch download."""
+    """Fetch 3-month daily closes for all symbols.
+
+    Yahoo frequently returns TODAY's daily bar with a NaN close for hours after
+    the session ends (the daily aggregator lags). If we silently drop it, the
+    breadth numbers describe the PREVIOUS session while the timestamp says
+    today. So for any symbol whose latest daily close is NaN we fill it from a
+    batched 60-minute download (last completed hourly bar of that session).
+
+    Returns (all_data, as_of_date) where all_data maps symbol -> list of closes
+    ending on as_of_date, and as_of_date is the common trading date used.
+    """
+    from collections import Counter
     all_data = {}
+    last_dates = {}
+    need_fill = []
     total = len(symbols)
 
     print(f"[INFO] Fetching data for {total} symbols in batches of {BATCH_SIZE}...")
@@ -84,7 +97,6 @@ def fetch_all_data(symbols):
         print(f"  Batch {batch_num}/{total_batches} ({len(batch)} symbols)...", end=" ", flush=True)
 
         try:
-            # yfinance.download handles auth/crumb automatically
             df = yf.download(
                 batch,
                 period="3mo",
@@ -101,15 +113,21 @@ def fetch_all_data(symbols):
             fetched_count = 0
             for sym in batch:
                 try:
-                    if len(batch) == 1:
-                        sym_df = df
+                    sym_df = df if len(batch) == 1 else df[sym]
+                    close_s = sym_df["Close"]
+                    if close_s.dropna().shape[0] < 2:
+                        continue
+                    last_idx = close_s.index[-1]
+                    last_val = close_s.iloc[-1]
+                    if last_val != last_val:  # NaN -> today's bar not aggregated yet
+                        need_fill.append(sym)
+                        closes = close_s.iloc[:-1].dropna().tolist()
+                        all_data[sym] = closes + [None]          # placeholder
+                        last_dates[sym] = last_idx.date()
                     else:
-                        sym_df = df[sym]
-
-                    closes = sym_df["Close"].dropna().tolist()
-                    if len(closes) >= 2:
-                        all_data[sym] = closes
-                        fetched_count += 1
+                        all_data[sym] = close_s.dropna().tolist()
+                        last_dates[sym] = last_idx.date()
+                    fetched_count += 1
                 except (KeyError, TypeError):
                     pass
 
@@ -120,12 +138,56 @@ def fetch_all_data(symbols):
         if i + BATCH_SIZE < total:
             time.sleep(SLEEP_BETWEEN)
 
-    print(f"[INFO] Successfully fetched {len(all_data)}/{total} symbols")
-    return all_data
+    # ── Fill NaN last bars from hourly data ─────────────────────────────
+    if need_fill:
+        print(f"[INFO] {len(need_fill)} symbols have a NaN latest daily close; filling from 60m bars...")
+        for i in range(0, len(need_fill), 50):
+            batch = need_fill[i:i + 50]
+            try:
+                hdf = yf.download(batch, period="5d", interval="60m", group_by="ticker",
+                                  progress=False, threads=True, prepost=False)
+                for sym in batch:
+                    try:
+                        hs = (hdf if len(batch) == 1 else hdf[sym])["Close"].dropna()
+                        if hs.empty:
+                            continue
+                        want = last_dates[sym]
+                        same_day = hs[[ts.date() == want for ts in hs.index]]
+                        if same_day.empty:
+                            continue
+                        all_data[sym][-1] = float(same_day.iloc[-1])
+                    except (KeyError, TypeError):
+                        pass
+            except Exception as e:
+                print(f"  [WARN] hourly fill batch failed: {e}")
+            if i + 50 < len(need_fill):
+                time.sleep(SLEEP_BETWEEN)
+
+    # Drop symbols we could not fill; they would be counted on the wrong day.
+    unfilled = [s_ for s_, c in all_data.items() if c and c[-1] is None]
+    for s_ in unfilled:
+        del all_data[s_]
+        last_dates.pop(s_, None)
+    if unfilled:
+        print(f"[WARN] {len(unfilled)} symbols dropped (no fill available): {unfilled[:10]}{'...' if len(unfilled) > 10 else ''}")
+
+    # Enforce a single common as-of date (the most common latest date).
+    if not last_dates:
+        print("[ERROR] No data fetched")
+        sys.exit(1)
+    as_of = Counter(last_dates.values()).most_common(1)[0][0]
+    off = [s_ for s_, d in last_dates.items() if d != as_of]
+    for s_ in off:
+        del all_data[s_]
+    if off:
+        print(f"[WARN] {len(off)} symbols dropped (latest bar != {as_of}): {off[:10]}{'...' if len(off) > 10 else ''}")
+
+    print(f"[INFO] Successfully fetched {len(all_data)}/{total} symbols, as of {as_of}")
+    return all_data, as_of
 
 
 # ─── STEP 3: Calculate breadth metrics ───────────────────────────────
-def calculate_breadth(all_data):
+def calculate_breadth(all_data, as_of=None):
     """Compute breadth metrics from close price data."""
     advancers = 0
     decliners = 0
@@ -190,6 +252,7 @@ def calculate_breadth(all_data):
 
     return {
         "updated": now_utc,
+        "as_of": as_of.isoformat() if as_of else None,   # trading session the numbers describe
         "stocks_counted": counted,
         "advancers": advancers,
         "decliners": decliners,
@@ -217,10 +280,11 @@ if __name__ == "__main__":
     if len(symbols) < 400:
         print(f"[WARN] Only found {len(symbols)} symbols, expected ~500")
 
-    all_data = fetch_all_data(symbols)
-    breadth = calculate_breadth(all_data)
+    all_data, as_of = fetch_all_data(symbols)
+    breadth = calculate_breadth(all_data, as_of)
 
     print("\n" + "=" * 60)
+    print(f"  As of session:    {breadth['as_of']}")
     print(f"  Stocks counted:   {breadth['stocks_counted']}")
     print(f"  Advancers:        {breadth['advancers']} ({breadth['adv_pct']}%)")
     print(f"  Decliners:        {breadth['decliners']} ({breadth['dec_pct']}%)")

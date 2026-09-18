@@ -514,6 +514,10 @@
     if (b.updated) {
       timeStr = fmtHKT(new Date(b.updated)) + ' HKT';
     }
+    if (b.as_of) {
+      // Trading session (ET date) these numbers describe.
+      timeStr = 'Session ' + b.as_of + (timeStr ? ' · updated ' + timeStr : '');
+    }
 
     el.innerHTML = `
       <div class="breadth-metric">

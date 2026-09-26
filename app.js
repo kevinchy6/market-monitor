@@ -98,6 +98,7 @@
         { name: 'Blockchain', symbol: 'BLOK' },
         { name: 'Utilities', symbol: 'XLU' },
         { name: 'Biotech', symbol: 'XBI' },
+        { name: 'Genomics', symbol: 'ARKG' },
         { name: 'Memory (DRAM)', symbol: 'DRAM' },
         { name: 'Technology', symbol: 'XLK' },
         { name: 'Chinese Tech', symbol: 'KWEB' },

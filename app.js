@@ -99,6 +99,7 @@
         { name: 'Utilities', symbol: 'XLU' },
         { name: 'Biotech', symbol: 'XBI' },
         { name: 'Genomics', symbol: 'ARKG' },
+        { name: 'Cybersecurity', symbol: 'HACK' },
         { name: 'Memory (DRAM)', symbol: 'DRAM' },
         { name: 'Technology', symbol: 'XLK' },
         { name: 'Chinese Tech', symbol: 'KWEB' },

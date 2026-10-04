@@ -27,22 +27,28 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install yfinance
+        run: pip install yfinance curl_cffi
 
       - name: Update dashboard data (data.json)
         run: |
           cd scripts
           OUTPUT_DIR=".." python3 update_data.py
 
-      - name: Update S&P 500 breadth (breadth.json)
+      - name: Commit data.json (fast path, before the slower breadth scan)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data.json
+          git diff --cached --quiet || git commit -m "Update market data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 10; done
+
+      - name: Update US market breadth (breadth.json)
         run: |
           cd scripts
           OUTPUT_DIR=".." python3 update_breadth.py
 
-      - name: Commit and push
+      - name: Commit breadth.json
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data.json breadth.json
-          git diff --cached --quiet || git commit -m "Update market data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          git push
+          git add breadth.json scripts/breadth_universe.txt
+          git diff --cached --quiet || git commit -m "Update breadth $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 10; done

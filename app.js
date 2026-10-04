@@ -495,58 +495,105 @@
     return 'var(--color-red)';
   }
 
+  function breadthPair(label, pr, upWord, downWord) {
+    if (!pr || pr.pct == null) {
+      return `<div class="br-row"><div class="br-row-head"><span class="br-row-label">${label}</span><span class="br-row-val">--</span></div></div>`;
+    }
+    const pct = pr.pct;
+    return `
+      <div class="br-row">
+        <div class="br-row-head">
+          <span class="br-row-label">${label}</span>
+          <span class="br-row-val"><b>${fmt(pct,1)}%</b> · ${pr.up.toLocaleString()} ${upWord} / ${pr.down.toLocaleString()} ${downWord}</span>
+        </div>
+        <div class="br-row-bar">
+          <span class="br-side up">▲ ${pr.up.toLocaleString()} ${upWord}</span>
+          <div class="br-split"><div class="br-split-up" style="width:${pct}%"></div></div>
+          <span class="br-side down">▼ ${pr.down.toLocaleString()} ${downWord}</span>
+        </div>
+      </div>`;
+  }
+
+  function nhnlSvg(line) {
+    if (!line || line.length < 2) return '';
+    const W = 600, H = 70, P = 2;
+    const vals = line.map(p => p[3]);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const span = (max - min) || 1;
+    const pts = vals.map((v, i) => {
+      const x = P + (i / (vals.length - 1)) * (W - 2 * P);
+      const y = P + (1 - (v - min) / span) * (H - 2 * P);
+      return [x.toFixed(1), y.toFixed(1)];
+    });
+    const path = pts.map((p, i) => (i ? 'L' : 'M') + p[0] + ' ' + p[1]).join(' ');
+    const area = path + ` L${pts[pts.length-1][0]} ${H} L${pts[0][0]} ${H} Z`;
+    const rising = vals[vals.length-1] >= vals[Math.max(0, vals.length-11)];
+    const col = rising ? 'var(--color-green)' : 'var(--color-red)';
+    return `<svg class="nhnl-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+      <path d="${area}" fill="${col}" opacity="0.15"></path>
+      <path d="${path}" fill="none" stroke="${col}" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
+    </svg>`;
+  }
+
   function renderBreadth() {
     const el = document.getElementById('breadth-content');
     if (!el) return;
     const b = breadthData;
     if (!b) {
-      el.innerHTML = '<div class="breadth-metric"><div class="breadth-metric-label">Loading S&P 500 breadth...</div><div class="breadth-metric-value">--</div></div>';
+      el.innerHTML = '<div class="breadth-metric"><div class="breadth-metric-label">Loading market breadth...</div><div class="breadth-metric-value">--</div></div>';
       return;
     }
 
-    const advPct = b.adv_pct;
-    const decPct = b.dec_pct;
-    const a20 = b.above_20d_pct;
+    // Legacy breadth.json (S&P 500 only) → synthesize the adv/dec pair
+    const pairs = b.pairs || { adv_dec: { up: b.advancers, down: b.decliners, pct: b.adv_pct } };
+    const ad = pairs.adv_dec || {};
     const a50 = b.above_50d_pct;
-    const label = b.label;
-    const labelClass = b.label_class;
+    const a20 = b.above_20d_pct;
+    const labelClass = b.label_class || 'neutral';
 
-    // Format update time
-    let timeStr = '';
-    if (b.updated) {
-      timeStr = fmtHKT(new Date(b.updated)) + ' HKT';
-    }
-    if (b.as_of) {
-      // Trading session (ET date) these numbers describe.
-      timeStr = 'Session ' + b.as_of + (timeStr ? ' · updated ' + timeStr : '');
-    }
+    let timeStr = b.updated ? 'updated ' + fmtHKT(new Date(b.updated)) + ' HKT' : '';
+    const sess = b.as_of ? (b.session_state === 'intraday' ? 'Intraday ' : 'EOD ') + b.as_of : '';
+    const uni = b.universe
+      ? `${b.universe.name} ${b.universe.size.toLocaleString()} · cap ≥$${Math.round(b.universe.mcap_min/1e6)}M`
+      : `S&P 500 · ${b.stocks_counted} stocks`;
+    const nhnl = pairs.nh_nl, vol = pairs.volume;
+    const lastPt = (b.nhnl_line && b.nhnl_line.length) ? b.nhnl_line[b.nhnl_line.length-1] : null;
+    const nhnlCol = lastPt && b.nhnl_line.length > 11 && lastPt[3] >= b.nhnl_line[b.nhnl_line.length-11][3] ? 'var(--color-green)' : 'var(--color-red)';
 
     el.innerHTML = `
-      <div class="breadth-metric">
-        <div class="breadth-metric-label">S&P 500 Advancers</div>
-        <div class="breadth-metric-value" style="color:var(--color-green)">${fmt(advPct,1)}%</div>
-        <div class="breadth-bar-container"><div class="breadth-bar" style="width:${advPct}%;background:var(--color-green)"></div></div>
+      <div class="br-left">
+        <div class="br-hero">
+          <div class="br-hero-pct" style="color:${ad.pct >= 50 ? 'var(--color-green)' : 'var(--color-red)'}">${ad.pct != null ? fmt(ad.pct,1) + '%' : '--'}</div>
+          <div class="br-hero-label">Advancers vs decliners
+            <span class="breadth-label ${labelClass}"><span class="status-dot ${labelClass==='strong'?'live':labelClass==='weak'?'error':'stale'}"></span>${b.label || ''}</span>
+          </div>
+          <div class="br-split big"><div class="br-split-up" style="width:${ad.pct || 0}%"></div></div>
+        </div>
+        <div class="br-chips">
+          <div class="br-chip"><div class="br-chip-label">New highs vs new lows</div><div class="br-chip-val">${nhnl ? `<span class="up">${nhnl.up}</span> / <span class="down">${nhnl.down}</span>` : '--'}</div></div>
+          <div class="br-chip"><div class="br-chip-label">% above 50-day</div><div class="br-chip-val" style="color:${breadthValColor(a50)}">${a50 != null ? fmt(a50,1) + '%' : '--'}</div></div>
+          <div class="br-chip"><div class="br-chip-label">% above 20-day</div><div class="br-chip-val" style="color:${breadthValColor(a20)}">${a20 != null ? fmt(a20,1) + '%' : '--'}</div></div>
+          <div class="br-chip"><div class="br-chip-label">Up on volume vs down on volume</div><div class="br-chip-val">${vol ? `<span class="up">${vol.up}</span> / <span class="down">${vol.down}</span>` : '--'}</div></div>
+        </div>
+        ${b.nhnl_line && b.nhnl_line.length > 1 ? `
+        <div class="nhnl-card">
+          <div class="nhnl-head">
+            <span class="nhnl-title">NH-NL line <span class="nhnl-sub">${sess}</span></span>
+            <span class="nhnl-val" style="color:${nhnlCol}">${lastPt[3].toLocaleString()}</span>
+          </div>
+          ${nhnlSvg(b.nhnl_line)}
+        </div>` : ''}
+        <div class="br-universe">${uni}${sess ? ' · ' + sess : ''}${timeStr ? ' · ' + timeStr : ''}</div>
       </div>
-      <div class="breadth-metric">
-        <div class="breadth-metric-label">S&P 500 Decliners</div>
-        <div class="breadth-metric-value" style="color:var(--color-red)">${fmt(decPct,1)}%</div>
-        <div class="breadth-bar-container"><div class="breadth-bar" style="width:${decPct}%;background:var(--color-red)"></div></div>
-      </div>
-      <div class="breadth-metric">
-        <div class="breadth-metric-label">&gt; 20D MA</div>
-        <div class="breadth-metric-value" style="color:${breadthValColor(a20)}">${a20 != null ? fmt(a20,1) + '%' : '--'}</div>
-        <div class="breadth-bar-container"><div class="breadth-bar" style="width:${a20 || 0}%;background:${breadthBarColor(a20 || 0)}"></div></div>
-      </div>
-      <div class="breadth-metric">
-        <div class="breadth-metric-label">&gt; 50D MA</div>
-        <div class="breadth-metric-value" style="color:${breadthValColor(a50)}">${a50 != null ? fmt(a50,1) + '%' : '--'}</div>
-        <div class="breadth-bar-container"><div class="breadth-bar" style="width:${a50 || 0}%;background:${breadthBarColor(a50 || 0)}"></div></div>
-      </div>
-      <div class="breadth-label ${labelClass}">
-        <span class="status-dot ${labelClass==='strong'?'live':labelClass==='weak'?'error':'stale'}"></span>
-        ${label}
-      </div>
-      ${timeStr ? '<div class="breadth-updated">' + timeStr + '</div>' : ''}`;
+      <div class="br-right">
+        <div class="br-rows">
+          ${breadthPair('Advancers vs decliners', pairs.adv_dec, 'advancers', 'decliners')}
+          ${breadthPair('New highs vs new lows', pairs.nh_nl, 'new highs', 'new lows')}
+          ${breadthPair('Above open vs below open', pairs.open, 'above open', 'below open')}
+          ${breadthPair('Up on volume vs down on volume', pairs.volume, 'up on volume', 'down on volume')}
+          ${breadthPair('Up over 4% vs down over 4%', pairs.pct4, 'up over 4%', 'down over 4%')}
+        </div>
+      </div>`;
   }
 
   function renderAll() {

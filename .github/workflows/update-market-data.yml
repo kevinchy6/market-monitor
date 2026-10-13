@@ -27,7 +27,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install yfinance curl_cffi
+        run: pip install yfinance curl_cffi lxml
 
       - name: Update dashboard data (data.json)
         run: |
@@ -51,4 +51,16 @@ jobs:
         run: |
           git add breadth.json scripts/breadth_universe.txt
           git diff --cached --quiet || git commit -m "Update breadth $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 10; done
+
+      - name: Update S&P 500 leaders & laggards (sp500_leaders.json)
+        continue-on-error: true
+        run: |
+          cd scripts
+          OUTPUT_DIR=".." python3 update_sp500_leaders.py
+
+      - name: Commit sp500_leaders.json
+        run: |
+          git add sp500_leaders.json scripts/sp500_constituents.csv 2>/dev/null || true
+          git diff --cached --quiet || git commit -m "Update S&P 500 leaders $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 10; done

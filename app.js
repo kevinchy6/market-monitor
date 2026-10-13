@@ -596,6 +596,127 @@
       </div>`;
   }
 
+  // ========================================
+  // S&P 500 LEADERS & LAGGARDS (from sp500_leaders.json)
+  // ========================================
+
+  let leadersData = null;
+  const leadersState = { period: 'ytd', n: 10, sector: 'All' };
+  const LD_PERIODS = ['ytd', 'qtd', 'mtd', 'ly'];
+  const LD_COL = { ytd: 4, qtd: 5, mtd: 6, ly: 7 };
+  const SECTOR_SHORT = {
+    'Information Technology': 'Tech', 'Health Care': 'Health', 'Financials': 'Fins',
+    'Consumer Discretionary': 'Discr', 'Communication Services': 'Comm', 'Industrials': 'Indus',
+    'Consumer Staples': 'Staples', 'Energy': 'Energy', 'Utilities': 'Utils',
+    'Real Estate': 'RE', 'Materials': 'Mats'
+  };
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  async function loadLeadersData() {
+    try {
+      const res = await fetch('./sp500_leaders.json?t=' + Date.now());
+      if (!res.ok) throw new Error('No leaders data');
+      leadersData = await res.json();
+    } catch (e) {
+      console.warn('No S&P 500 leaders data available:', e.message);
+      leadersData = null;
+    }
+    renderLeaders();
+  }
+
+  function periodLabel(k) {
+    const p = leadersData && leadersData.periods && leadersData.periods[k];
+    return p ? p.label : k.toUpperCase();
+  }
+
+  function leadersTable(title, rows, cls) {
+    const act = leadersState.period;
+    const head = `<tr>
+      <th>Symbol</th><th>Company</th><th>Sector</th><th>Price</th>
+      ${LD_PERIODS.map(k => `<th class="${k === act ? 'ld-active' : ''}">${esc(periodLabel(k))}</th>`).join('')}
+    </tr>`;
+    const body = rows.length ? rows.map((r, i) => `<tr>
+        <td><span class="ld-rank">${i + 1}</span>${esc(r[0])}</td>
+        <td title="${esc(r[1])}">${esc(r[1])}</td>
+        <td class="ld-sector" title="${esc(r[2])}">${esc(SECTOR_SHORT[r[2]] || r[2])}</td>
+        <td>${fmtPrice(r[3])}</td>
+        ${LD_PERIODS.map(k => {
+          const v = r[LD_COL[k]];
+          return `<td class="${hmClass(v, 'period')}${k === act ? ' ld-active' : ''}">${fmtPct(v)}</td>`;
+        }).join('')}
+      </tr>`).join('')
+      : `<tr><td colspan="8" class="ld-empty">No members with data</td></tr>`;
+    return `<div class="ld-block">
+        <div class="ld-block-title ${cls}">${title}</div>
+        <div class="table-wrapper"><table class="data-table ld-table"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+      </div>`;
+  }
+
+  function renderLeaders() {
+    const el = document.getElementById('leaders-content');
+    if (!el) return;
+    const d = leadersData;
+    if (!d || !Array.isArray(d.rows)) {
+      el.innerHTML = `<div class="table-section-header"><span class="table-section-title">S&amp;P 500 Leaders &amp; Laggards</span></div>
+        <div class="ld-meta">Loading constituent performance...</div>`;
+      return;
+    }
+    const st = leadersState;
+    const col = LD_COL[st.period];
+    const p = d.periods[st.period] || {};
+    const sectors = [...new Set(d.rows.map(r => r[2]).filter(Boolean))].sort();
+    if (st.sector !== 'All' && !sectors.includes(st.sector)) st.sector = 'All';
+
+    const pool = d.rows.filter(r => r[col] != null && (st.sector === 'All' || r[2] === st.sector));
+    const sorted = [...pool].sort((a, b) => b[col] - a[col]);
+    const n = Math.min(st.n, Math.floor(sorted.length / 2) || sorted.length);
+    const top = sorted.slice(0, n);
+    const bottom = sorted.slice(-n).reverse();
+
+    // pool stats (sector-filtered) — index return is always the full S&P 500
+    const vals = pool.map(r => r[col]).sort((a, b) => a - b);
+    const med = vals.length ? (vals.length % 2 ? vals[(vals.length - 1) / 2] : (vals[vals.length / 2 - 1] + vals[vals.length / 2]) / 2) : null;
+    const up = vals.length ? vals.filter(v => v > 0).length / vals.length * 100 : null;
+
+    const sameAsQtd = st.period === 'mtd' && d.periods.qtd && d.periods.mtd && d.periods.qtd.start === d.periods.mtd.start;
+    const live = st.period !== 'ly' && d.session_state === 'intraday';
+    const tabs = LD_PERIODS.map(k =>
+      `<button class="ld-seg${k === st.period ? ' on' : ''}" data-ld-period="${k}">${esc(periodLabel(k))}</button>`).join('');
+    const nBtns = [10, 20].map(k =>
+      `<button class="ld-seg${k === st.n ? ' on' : ''}" data-ld-n="${k}">Top ${k}</button>`).join('');
+    const opts = ['All', ...sectors].map(s =>
+      `<option value="${esc(s)}"${s === st.sector ? ' selected' : ''}>${s === 'All' ? 'All sectors' : esc(s)}</option>`).join('');
+
+    const idxTxt = p.index != null ? `<span class="${p.index >= 0 ? 'ld-pos' : 'ld-neg'}">${fmtPct(p.index)}</span>` : '--';
+    const medTxt = med != null ? `<span class="${med >= 0 ? 'ld-pos' : 'ld-neg'}">${fmtPct(med)}</span>` : '--';
+
+    el.innerHTML = `
+      <div class="table-section-header ld-header">
+        <span class="table-section-title">S&amp;P 500 Leaders &amp; Laggards</span>
+        <div class="ld-controls">
+          <div class="ld-segs" role="group" aria-label="Period">${tabs}</div>
+          <div class="ld-segs" role="group" aria-label="Count">${nBtns}</div>
+          <select class="ld-select" id="ld-sector" aria-label="Sector filter">${opts}</select>
+        </div>
+      </div>
+      <div class="ld-meta">
+        <span>${esc(p.start || '--')} → ${esc(p.end || '--')}${live ? ' <span class="ld-tag">intraday</span>' : ''}${sameAsQtd ? ' <span class="ld-note">(same as QTD — first month of quarter)</span>' : ''}</span>
+        <span>S&amp;P 500 index ${idxTxt}</span>
+        <span>${st.sector === 'All' ? 'Median member' : 'Sector median'} ${medTxt}</span>
+        <span>${up != null ? up.toFixed(0) + '%' : '--'} of ${vals.length} up</span>
+      </div>
+      <div class="ld-grid">
+        ${leadersTable('Best performers', top, 'up')}
+        ${leadersTable('Worst performers', bottom, 'down')}
+      </div>
+      <div class="ld-foot">Price return (split-adjusted, excl. dividends) of current S&amp;P 500 members; members listed after the period start are excluded. ${st.period === 'ly' ? 'Full-year ranking uses today\u2019s membership (survivorship bias). ' : ''}Data as of ${esc(d.as_of)}, updated ${d.updated ? fmtHKT(new Date(d.updated)) + ' HKT' : '--'}.</div>`;
+
+    el.querySelectorAll('[data-ld-period]').forEach(b => b.addEventListener('click', () => { st.period = b.dataset.ldPeriod; renderLeaders(); }));
+    el.querySelectorAll('[data-ld-n]').forEach(b => b.addEventListener('click', () => { st.n = +b.dataset.ldN; renderLeaders(); }));
+    const sel = el.querySelector('#ld-sector');
+    if (sel) sel.addEventListener('change', () => { st.sector = sel.value; renderLeaders(); });
+  }
+
   function renderAll() {
     ['alternatives', 'global', 'indices', 'sectors'].forEach(renderSection);
   }
@@ -740,9 +861,17 @@
       }
     } catch (e) { console.warn('breadth.json reload failed:', e); }
 
+    try {
+      const res = await fetch('./sp500_leaders.json' + bust);
+      if (res.ok) {
+        leadersData = await res.json();
+      }
+    } catch (e) { console.warn('sp500_leaders.json reload failed:', e); }
+
     lastUpdated = new Date();
     renderAll();
     renderBreadth();
+    renderLeaders();
     updateTimestamp(GITHUB_CONFIG.token ? 'live' : 'cached');
     isLoading = false;
     if (btn) btn.classList.remove('loading');
@@ -820,6 +949,9 @@
 
     // 2) Load S&P 500 breadth data
     await loadBreadthData();
+
+    // 2b) Load S&P 500 constituent leaders / laggards
+    await loadLeadersData();
 
     // 3) Auto-reload data every 2 hours
     setInterval(() => refreshData(), 2 * 60 * 60 * 1000);

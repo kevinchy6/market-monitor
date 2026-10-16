@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-15T21:13:40Z",
+ "updated": "2026-10-16T00:15:11Z",
  "as_of": "2026-10-15",
  "session_state": "eod",
  "universe": {
@@ -9,20 +9,20 @@
   "price_min": 3.0
  },
  "stocks_counted": 2895,
- "advancers": 2197,
- "decliners": 680,
- "unchanged": 18,
- "adv_pct": 75.9,
- "dec_pct": 23.5,
+ "advancers": 2205,
+ "decliners": 686,
+ "unchanged": 4,
+ "adv_pct": 76.2,
+ "dec_pct": 23.7,
  "above_20d_pct": 48.8,
  "above_50d_pct": 32.9,
  "label": "STRONG BREADTH",
  "label_class": "strong",
  "pairs": {
   "adv_dec": {
-   "up": 2197,
-   "down": 680,
-   "pct": 76.4
+   "up": 2205,
+   "down": 686,
+   "pct": 76.3
   },
   "nh_nl": {
    "up": 89,
@@ -30,13 +30,13 @@
    "pct": 49.4
   },
   "open": {
-   "up": 2096,
-   "down": 779,
-   "pct": 72.9
+   "up": 2105,
+   "down": 789,
+   "pct": 72.7
   },
   "volume": {
-   "up": 1175,
-   "down": 418,
+   "up": 1180,
+   "down": 420,
    "pct": 73.8
   },
   "pct4": {

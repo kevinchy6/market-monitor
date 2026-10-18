@@ -40,7 +40,16 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data.json
           git diff --cached --quiet || git commit -m "Update market data $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 10; done
+          # Retry, but fail loudly: the old one-liner ended on `sleep 10`
+          # (exit 0), so a run that never pushed still went green.
+          ok=0
+          for i in 1 2 3; do
+            git pull --rebase -q || true
+            if git push -q; then ok=1; break; fi
+            echo "push attempt $i failed; retrying in 10s" >&2
+            sleep 10
+          done
+          [ "$ok" = "1" ] || { echo "::error::could not push after 3 attempts"; exit 1; }
 
       - name: Update US market breadth (breadth.json)
         run: |
@@ -51,7 +60,16 @@ jobs:
         run: |
           git add breadth.json scripts/breadth_universe.txt
           git diff --cached --quiet || git commit -m "Update breadth $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 10; done
+          # Retry, but fail loudly: the old one-liner ended on `sleep 10`
+          # (exit 0), so a run that never pushed still went green.
+          ok=0
+          for i in 1 2 3; do
+            git pull --rebase -q || true
+            if git push -q; then ok=1; break; fi
+            echo "push attempt $i failed; retrying in 10s" >&2
+            sleep 10
+          done
+          [ "$ok" = "1" ] || { echo "::error::could not push after 3 attempts"; exit 1; }
 
       - name: Update S&P 500 leaders & laggards (sp500_leaders.json)
         continue-on-error: true
@@ -63,4 +81,13 @@ jobs:
         run: |
           git add sp500_leaders.json scripts/sp500_constituents.csv 2>/dev/null || true
           git diff --cached --quiet || git commit -m "Update S&P 500 leaders $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          for i in 1 2 3; do git pull --rebase -q && git push -q && break || sleep 10; done
+          # Retry, but fail loudly: the old one-liner ended on `sleep 10`
+          # (exit 0), so a run that never pushed still went green.
+          ok=0
+          for i in 1 2 3; do
+            git pull --rebase -q || true
+            if git push -q; then ok=1; break; fi
+            echo "push attempt $i failed; retrying in 10s" >&2
+            sleep 10
+          done
+          [ "$ok" = "1" ] || { echo "::error::could not push after 3 attempts"; exit 1; }

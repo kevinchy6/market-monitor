@@ -1,48 +1,48 @@
 {
- "updated": "2026-10-23T00:32:31Z",
+ "updated": "2026-10-23T03:36:11Z",
  "as_of": "2026-10-22",
  "session_state": "eod",
  "universe": {
   "name": "Common stock + ADR liquid pool",
-  "size": 2902,
+  "size": 2905,
   "mcap_min": 500000000,
   "price_min": 3.0
  },
- "stocks_counted": 2902,
- "advancers": 1665,
- "decliners": 1233,
- "unchanged": 4,
- "adv_pct": 57.4,
- "dec_pct": 42.5,
- "above_20d_pct": 59.5,
- "above_50d_pct": 44.6,
+ "stocks_counted": 2905,
+ "advancers": 1663,
+ "decliners": 1220,
+ "unchanged": 22,
+ "adv_pct": 57.2,
+ "dec_pct": 42.0,
+ "above_20d_pct": 59.6,
+ "above_50d_pct": 44.5,
  "label": "NEUTRAL",
  "label_class": "neutral",
  "pairs": {
   "adv_dec": {
-   "up": 1665,
-   "down": 1233,
-   "pct": 57.5
+   "up": 1663,
+   "down": 1220,
+   "pct": 57.7
   },
   "nh_nl": {
-   "up": 141,
-   "down": 97,
-   "pct": 59.2
+   "up": 144,
+   "down": 95,
+   "pct": 60.3
   },
   "open": {
-   "up": 1859,
-   "down": 1036,
-   "pct": 64.2
+   "up": 1848,
+   "down": 1022,
+   "pct": 64.4
   },
   "volume": {
-   "up": 895,
-   "down": 635,
-   "pct": 58.5
+   "up": 892,
+   "down": 630,
+   "pct": 58.6
   },
   "pct4": {
-   "up": 392,
+   "up": 393,
    "down": 460,
-   "pct": 46.0
+   "pct": 46.1
   }
  },
  "nhnl_line": [
@@ -1536,10 +1536,10 @@
   ],
   [
    "2026-10-22",
-   141,
-   97,
-   21314
+   144,
+   95,
+   21319
   ]
  ],
- "nhnl_value": 21314
+ "nhnl_value": 21319
 }

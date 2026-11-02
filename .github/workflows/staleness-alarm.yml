@@ -88,6 +88,8 @@ jobs:
       - name: Raise or clear the alarm
         env:
           GH_TOKEN: ${{ github.token }}
+          # No checkout in this job, so gh cannot infer the repo from git.
+          GH_REPO: ${{ github.repository }}
           STALE: ${{ steps.measure.outputs.stale }}
           DETAIL: ${{ steps.measure.outputs.detail }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

@@ -34,12 +34,15 @@ jobs:
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import datetime, json, urllib.request
 
-          RAW = "https://raw.githubusercontent.com/kevinchy6/{repo}/main/{path}?x={ts}"
+          # Read what visitors actually get, not the repo: this also catches a
+          # broken Pages deployment, which leaves the committed data fresh while
+          # the site stays stale.
+          SITE = "https://kevinchy6.github.io/{repo}/{path}?x={ts}"
           now = datetime.datetime.now(datetime.timezone.utc)
           ts = int(now.timestamp())
 
           def age_hours(repo, path):
-              url = RAW.format(repo=repo, path=path, ts=ts)
+              url = SITE.format(repo=repo, path=path, ts=ts)
               req = urllib.request.Request(url, headers={"User-Agent": "staleness-check"})
               with urllib.request.urlopen(req, timeout=20) as r:
                   doc = json.load(r)
@@ -68,12 +71,12 @@ jobs:
 
           # US data is only expected to move during the US session; outside it
           # (nights, weekends) it is legitimately frozen, so no alarm.
-          check("美股", "equity-screener", "public/data/us.json",
+          check("美股", "equity-screener", "data/us.json",
                   limit=4, active=in_us_session)
           # HK/JP legitimately sit still for a weekend; 48h means a missed
           # trading day or a dead pipeline.
-          check("港股", "equity-screener", "public/data/hk.json", limit=48, active=True)
-          check("日股", "equity-screener", "public/data/jp.json", limit=48, active=True)
+          check("港股", "equity-screener", "data/hk.json", limit=48, active=True)
+          check("日股", "equity-screener", "data/jp.json", limit=48, active=True)
           check("行情仪表盘", "market-monitor", "data.json", limit=8, active=True)
 
           detail = "；".join(notes) if notes else "无数据"

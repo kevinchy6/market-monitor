@@ -13,6 +13,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 # Seven crons plus the watchdog's dispatches overlap easily. Without a group two
 # runs download the same data and then race on `git push`, which is what the
@@ -100,3 +102,37 @@ jobs:
             sleep 10
           done
           [ "$ok" = "1" ] || { echo "::error::could not push after 3 attempts"; exit 1; }
+
+  # Publish through Actions instead of the legacy branch build. The legacy
+  # builder made one Jekyll build per commit -- three per run -- and any one of
+  # them failing left some files unpublished ("Page build failed." with no
+  # detail, seen 2026-11-02 on bd5bc28 while its neighbours built fine).
+  deploy:
+    needs: update-data
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout latest main
+        uses: actions/checkout@v4
+        with:
+          # The update job just pushed its commits; the default ref would be the
+          # SHA this run started from, i.e. the data from before those pushes.
+          ref: main
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp index.html app.js base.css style.css \
+             data.json breadth.json sp500_leaders.json _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

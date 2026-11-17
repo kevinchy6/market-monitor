@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-17T04:26:47Z",
+ "updated": "2026-11-17T07:39:58Z",
  "as_of": "2026-11-16",
  "session_state": "eod",
  "universe": {
@@ -36,7 +36,7 @@
   },
   "volume": {
    "up": 246,
-   "down": 681,
+   "down": 682,
    "pct": 26.5
   },
   "pct4": {

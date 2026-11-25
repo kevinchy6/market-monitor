@@ -15,6 +15,10 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  # deploy-pages lists the run's artifacts to find "github-pages"; without this
+  # scopes are all "none" once any permission is named, and the listing fails
+  # with "No artifacts named github-pages were found" (2026-11-24 onward).
+  actions: read
 
 # Seven crons plus the watchdog's dispatches overlap easily. Without a group two
 # runs download the same data and then race on `git push`, which is what the

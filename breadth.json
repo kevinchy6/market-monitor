@@ -1,7 +1,7 @@
 {
- "updated": "2026-11-27T20:59:45Z",
+ "updated": "2026-11-27T22:22:40Z",
  "as_of": "2026-11-27",
- "session_state": "intraday",
+ "session_state": "eod",
  "universe": {
   "name": "Common stock + ADR liquid pool",
   "size": 2837,
@@ -25,19 +25,19 @@
    "pct": 84.9
   },
   "nh_nl": {
-   "up": 67,
+   "up": 66,
    "down": 6,
-   "pct": 91.8
+   "pct": 91.7
   },
   "open": {
-   "up": 1785,
-   "down": 1006,
-   "pct": 64.0
+   "up": 1788,
+   "down": 1003,
+   "pct": 64.1
   },
   "volume": {
-   "up": 100,
+   "up": 108,
    "down": 25,
-   "pct": 80.0
+   "pct": 81.2
   },
   "pct4": {
    "up": 420,
@@ -1530,10 +1530,10 @@
   ],
   [
    "2026-11-27",
-   67,
+   66,
    6,
-   19864
+   19863
   ]
  ],
- "nhnl_value": 19864
+ "nhnl_value": 19863
 }
